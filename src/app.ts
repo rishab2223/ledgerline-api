@@ -1,9 +1,10 @@
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import { apiKeyAuth } from "./auth.js";
+import { rateLimit } from "./rate-limit.js";
 import { Store } from "./store.js";
 
-export type AppOptions = { dataPath: string; keysPath: string };
+export type AppOptions = { dataPath: string; keysPath: string; now?: () => number };
 
 const pageQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -23,6 +24,7 @@ export function createApp(opts: AppOptions): Express {
     res.json({ ok: true });
   });
   app.use(apiKeyAuth(opts.keysPath));
+  app.use(rateLimit({ now: opts.now }));
 
   app.get("/accounts", (_req, res) => {
     res.json(store.accounts().map((a) => ({ ...a, balanceCents: store.balanceCents(a.id) })));
