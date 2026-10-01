@@ -15,6 +15,9 @@ Every request needs an API key in `X-Api-Key` (see `data/keys.json`; the
 seeded key is `key_demo_1`). Responses are JSON. Errors follow
 `{ "error": "<CODE>", "message": "..." }`.
 
+A minimal web UI is served at `/` (static `public/index.html`): enter an API
+key, see balances, post a transaction. The key stays in the page's memory.
+
 | method | path | notes |
 | --- | --- | --- |
 | GET | `/accounts` | all accounts |

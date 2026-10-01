@@ -1,4 +1,5 @@
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { apiKeyAuth } from "./auth.js";
 import { rateLimit } from "./rate-limit.js";
@@ -23,6 +24,8 @@ export function createApp(opts: AppOptions): Express {
   app.get("/health", (_req, res) => {
     res.json({ ok: true });
   });
+  // The web UI is public; it sends the API key itself on every call.
+  app.use(express.static(fileURLToPath(new URL("../public", import.meta.url))));
   app.use(apiKeyAuth(opts.keysPath));
   app.use(rateLimit({ now: opts.now }));
 
