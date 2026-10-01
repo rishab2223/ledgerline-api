@@ -23,6 +23,11 @@ seeded key is `key_demo_1`). Responses are JSON. Errors follow
 | POST | `/accounts/:id/transactions` | `{ amountCents, memo }` (positive credits, negative debits) |
 | GET | `/health` | liveness |
 
+Authenticated routes are rate limited per API key (ADR-007): a token bucket of
+20 per minute for `free` keys and 200 per minute for `pro` keys, reported in
+`X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`. An empty
+bucket yields `429` with `Retry-After`. `/health` is never limited.
+
 Design notes live in `docs/` (architecture decision records are numbered
 `adr-NNN`). Contributions: keep `npm test`, `npm run lint` and
 `npm run typecheck` green.
