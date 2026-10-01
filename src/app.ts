@@ -51,7 +51,7 @@ export function createApp(opts: AppOptions): Express {
     const { page, pageSize } = parsed.data;
     const all = store.transactionsOf(account.id);
     const start = (page - 1) * pageSize;
-    const items = all.slice(start, start + pageSize + 1);
+    const items = all.slice(start, start + pageSize);
     res.json({ page, pageSize, total: all.length, totalPages: Math.ceil(all.length / pageSize), items });
   });
 
