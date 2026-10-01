@@ -39,6 +39,20 @@ describe("rate limiting (ADR-007)", () => {
     expect(full.headers["x-ratelimit-reset"]).toBe("3");
   });
 
+  it("does not charge rejected requests: refill continues while a client keeps retrying", async () => {
+    const c = clock();
+    const { app } = testApp(0, { now: c.now });
+    for (let i = 0; i < 20; i++) await request(app).get("/accounts").set(auth);
+    // Retry at +1 s and +2 s: both rejected, but the fractional refill must survive them,
+    // so the attempt at +3 s (one full token) succeeds. ADR-007: rejected requests consume nothing.
+    for (let i = 0; i < 2; i++) {
+      c.advance(1_000);
+      expect((await request(app).get("/accounts").set(auth)).status).toBe(429);
+    }
+    c.advance(1_000);
+    expect((await request(app).get("/accounts").set(auth)).status).toBe(200);
+  });
+
   it("gives the pro tier a capacity of 200 and keys separate buckets", async () => {
     const c = clock();
     const { app } = testApp(0, { now: c.now });
