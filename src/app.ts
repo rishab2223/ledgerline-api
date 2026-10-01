@@ -17,6 +17,12 @@ const newTransaction = z.object({
   memo: z.string().min(1).max(140),
 });
 
+const newTransfer = z.object({
+  toAccountId: z.string().min(1),
+  amountCents: z.number().int().positive(),
+  memo: z.string().min(1).max(140),
+});
+
 export function createApp(opts: AppOptions): Express {
   const store = new Store(opts.dataPath);
   const app = express();
@@ -73,6 +79,28 @@ export function createApp(opts: AppOptions): Express {
     }
     const tx = store.addTransaction({ accountId: account.id, ...parsed.data });
     res.status(201).json(tx);
+  });
+
+  app.post("/accounts/:id/transfers", (req, res) => {
+    const from = store.account(String(req.params.id));
+    if (!from) {
+      res.status(404).json({ error: "NOT_FOUND", message: "no such account" });
+      return;
+    }
+    const parsed = newTransfer.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "VALIDATION", message: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") });
+      return;
+    }
+    const { toAccountId, amountCents, memo } = parsed.data;
+    const to = store.account(toAccountId);
+    if (!to) {
+      res.status(404).json({ error: "NOT_FOUND", message: "no such destination account" });
+      return;
+    }
+    const debit = store.addTransaction({ accountId: from.id, amountCents: -amountCents, memo: `transfer to ${to.id}: ${memo}` });
+    const credit = store.addTransaction({ accountId: to.id, amountCents, memo: `transfer from ${from.id}: ${memo}` });
+    res.status(201).json({ debit, credit });
   });
 
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

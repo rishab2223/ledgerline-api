@@ -24,6 +24,7 @@ key, see balances, post a transaction. The key stays in the page's memory.
 | GET | `/accounts/:id` | one account with its balance |
 | GET | `/accounts/:id/transactions?page=&pageSize=` | newest first, paginated |
 | POST | `/accounts/:id/transactions` | `{ amountCents, memo }` (positive credits, negative debits) |
+| POST | `/accounts/:id/transfers` | `{ toAccountId, amountCents, memo }` (positive); debits `:id`, credits `toAccountId` |
 | GET | `/health` | liveness |
 
 Authenticated routes are rate limited per API key (ADR-007): a token bucket of
