@@ -36,18 +36,16 @@ export function rateLimit(opts: RateLimitOptions = {}) {
     const allowed = bucket.tokens >= 1;
     if (allowed) {
       bucket.tokens -= 1;
-    } else {
-      bucket.tokens = Math.max(0, bucket.tokens - 1);
     }
 
     const remaining = Math.max(0, Math.floor(bucket.tokens));
-    const secondsUntilFull = Math.ceil((capacity - bucket.tokens) / ratePerMs / 1000);
+    const secondsUntilFull = Math.ceil((capacity - bucket.tokens) / ratePerMs / 1000) || 0;
     res.setHeader("X-RateLimit-Limit", String(capacity));
     res.setHeader("X-RateLimit-Remaining", String(remaining));
     res.setHeader("X-RateLimit-Reset", String(secondsUntilFull));
 
     if (!allowed) {
-      const secondsUntilToken = Math.max(1, Math.ceil((1 - bucket.tokens) / ratePerMs / 1000));
+      const secondsUntilToken = Math.max(1, Math.ceil((1 - bucket.tokens) / ratePerMs / 1000)) || 1;
       res.setHeader("Retry-After", String(secondsUntilToken));
       res.status(429).json({ error: "RATE_LIMITED", message: `rate limit exceeded for this API key; retry in ${secondsUntilToken}s` });
       return;

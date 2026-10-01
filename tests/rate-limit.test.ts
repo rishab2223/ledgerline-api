@@ -5,7 +5,8 @@ import { auth, testApp } from "./helpers.js";
 /** A manual clock so refill can be driven without sleeping (ADR-007). */
 function clock(start = 1_700_000_000_000) {
   let t = start;
-  return { now: () => t, advance: (ms: number) => (t += ms) };
+  const advance = (ms: number) => { t += ms };
+  return { now: () => t, advance };
 }
 
 describe("rate limiting (ADR-007)", () => {
