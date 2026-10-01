@@ -33,6 +33,24 @@ export function createApp(opts: AppOptions): Express {
   // The web UI is public; it sends the API key itself on every call.
   app.use(express.static(fileURLToPath(new URL("../public", import.meta.url))));
   app.use(apiKeyAuth(opts.keysPath));
+
+  // Lightweight read for dashboards: balance plus counts, no transaction list.
+  app.get("/accounts/:id/summary", (req, res) => {
+    const account = store.account(String(req.params.id));
+    if (!account) {
+      res.status(404).json({ error: "NOT_FOUND", message: "no such account" });
+      return;
+    }
+    const txs = store.transactionsOf(account.id);
+    res.json({
+      id: account.id,
+      currency: account.currency,
+      balanceCents: store.balanceCents(account.id),
+      transactionCount: txs.length,
+      lastPostedAt: txs[0]?.postedAt ?? null,
+    });
+  });
+
   app.use(rateLimit({ now: opts.now }));
 
   app.get("/accounts", (_req, res) => {
