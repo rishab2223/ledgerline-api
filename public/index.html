@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ledgerline</title>
+  <style>
+    :root { --bg: #fff; --fg: #1a1a1a; --muted: #666; --line: #ddd; --accent: #0b6; --err: #c33; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #111; --fg: #eee; --muted: #999; --line: #333; } }
+    body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font: 15px/1.4 system-ui, sans-serif; max-width: 720px; margin-inline: auto; }
+    h1 { font-size: 20px; margin: 0 0 12px; }
+    fieldset { border: 1px solid var(--line); border-radius: 6px; margin: 0 0 16px; padding: 12px; }
+    legend { color: var(--muted); padding: 0 4px; }
+    label { display: block; margin: 6px 0 2px; color: var(--muted); font-size: 13px; }
+    input, select, button { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--fg); }
+    button { cursor: pointer; border-color: var(--accent); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    #status { color: var(--muted); font-size: 13px; min-height: 1.4em; }
+    #status.err { color: var(--err); }
+  </style>
+</head>
+<body>
+  <h1>Ledgerline</h1>
+
+  <fieldset>
+    <legend>API key</legend>
+    <label for="key">X-Api-Key (kept in this page only)</label>
+    <input id="key" type="password" placeholder="key_demo_1" autocomplete="off">
+    <button id="load" type="button">Load accounts</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>Accounts</legend>
+    <table>
+      <thead><tr><th>Account</th><th>Owner</th><th>Currency</th><th class="num">Balance</th></tr></thead>
+      <tbody id="accounts"><tr><td colspan="4">No data yet.</td></tr></tbody>
+    </table>
+  </fieldset>
+
+  <fieldset>
+    <legend>Post a transaction</legend>
+    <label for="account">Account</label>
+    <select id="account"></select>
+    <label for="amount">Amount in cents (negative = debit)</label>
+    <input id="amount" type="number" step="1" placeholder="-2500">
+    <label for="memo">Memo</label>
+    <input id="memo" type="text" maxlength="140" placeholder="groceries">
+    <div style="margin-top:8px"><button id="post" type="button">Post</button></div>
+  </fieldset>
+
+  <p id="status"></p>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const status = (msg, isErr = false) => { $("status").textContent = msg; $("status").className = isErr ? "err" : ""; };
+    const money = (cents, currency) => (cents / 100).toLocaleString(undefined, { style: "currency", currency });
+
+    async function api(path, init = {}) {
+      const key = $("key").value.trim();
+      const res = await fetch(path, { ...init, headers: { "X-Api-Key": key, "Content-Type": "application/json", ...(init.headers || {}) } });
+      const body = await res.json().catch(() => ({}));
+      const limit = res.headers.get("X-RateLimit-Remaining");
+      if (!res.ok) throw new Error(`${body.error || res.status}: ${body.message || "request failed"}${limit !== null ? ` (rate limit remaining: ${limit})` : ""}`);
+      return { body, limit };
+    }
+
+    async function loadAccounts() {
+      try {
+        const { body, limit } = await api("/accounts");
+        const rows = body.map((a) => `<tr><td>${a.id}</td><td>${a.owner}</td><td>${a.currency}</td><td class="num">${money(a.balanceCents, a.currency)}</td></tr>`);
+        $("accounts").innerHTML = rows.join("") || `<tr><td colspan="4">No accounts.</td></tr>`;
+        $("account").innerHTML = body.map((a) => `<option value="${a.id}">${a.id} (${a.owner})</option>`).join("");
+        status(`${body.length} account(s) loaded${limit !== null ? ` · rate limit remaining: ${limit}` : ""}`);
+      } catch (e) {
+        status(e.message, true);
+      }
+    }
+
+    async function postTransaction() {
+      const accountId = $("account").value;
+      const amountCents = Number($("amount").value);
+      const memo = $("memo").value.trim();
+      if (!accountId) return status("Load accounts first.", true);
+      try {
+        const { body } = await api(`/accounts/${encodeURIComponent(accountId)}/transactions`, { method: "POST", body: JSON.stringify({ amountCents, memo }) });
+        status(`Posted ${body.id} (${body.amountCents} cents).`);
+        $("amount").value = "";
+        $("memo").value = "";
+        await loadAccounts();
+      } catch (e) {
+        status(e.message, true);
+      }
+    }
+
+    $("load").addEventListener("click", loadAccounts);
+    $("post").addEventListener("click", postTransaction);
+    $("key").addEventListener("keydown", (e) => { if (e.key === "Enter") loadAccounts(); });
+  </script>
+</body>
+</html>
